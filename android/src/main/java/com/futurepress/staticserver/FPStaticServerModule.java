@@ -17,14 +17,15 @@ import java.net.ServerSocket;
 
 import android.util.Log;
 
-
-import fi.iki.elonen.SimpleWebServer;
+import fi.iki.elonen.SimpleWebServer2;
+import fi.iki.elonen.WebServer;
 
 public class FPStaticServerModule extends ReactContextBaseJavaModule implements LifecycleEventListener {
 
   private final ReactApplicationContext reactContext;
 
   private static final String LOGTAG = "FPStaticServerModule";
+  private static final String ANDROID_ASSETS_DIR = "/android_asset/";
 
   private File www_root = null;
   private int port = 9999;
@@ -32,7 +33,7 @@ public class FPStaticServerModule extends ReactContextBaseJavaModule implements 
   private boolean keep_alive = false;
 
   private String localPath = "";
-  private SimpleWebServer server = null;
+  private SimpleWebServer2 server = null;
   private String	url = "";
 
   public FPStaticServerModule(ReactApplicationContext reactContext) {
@@ -95,7 +96,11 @@ public class FPStaticServerModule extends ReactContextBaseJavaModule implements 
       }
     }
 
-    if(root != null && (root.startsWith("/") || root.startsWith("file:///"))) {
+    if (root == null) {
+      root = "/";
+    }
+
+    if(root.startsWith("/") || root.startsWith("file:///")) {
       www_root = new File(root);
       localPath = www_root.getAbsolutePath();
     } else {
@@ -112,13 +117,14 @@ public class FPStaticServerModule extends ReactContextBaseJavaModule implements 
     }
 
     try {
+      String localAddress = localhost_only ? "localhost" : __getLocalIpAddress();
 
-      if(localhost_only) {
-        server = new WebServer("localhost", port, www_root);
+      if (root.startsWith(ANDROID_ASSETS_DIR)) {
+        // Strip '/android_asset/'
+        server = new WebServer(this.reactContext.getApplicationContext(), localAddress, port, root.substring(15));
       } else {
-        server = new WebServer(__getLocalIpAddress(), port, www_root);
+        server = new WebServer(this.reactContext.getApplicationContext(), localAddress, port, www_root);
       }
-
 
       if (localhost_only) {
         url = "http://localhost:" + port;
@@ -132,8 +138,6 @@ public class FPStaticServerModule extends ReactContextBaseJavaModule implements 
 
     } catch (IOException e) {
       String msg = e.getMessage();
-
-
 
       // Server doesn't stop on refresh
       if (server != null && msg.equals("bind failed: EADDRINUSE (Address already in use)")){
